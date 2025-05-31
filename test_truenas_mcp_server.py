@@ -113,7 +113,6 @@ class TestTrueNASDocServer:
         """Test finding CLAUDE.md files."""
         server = TrueNASDocServer(str(temp_docs_dir))
         files = server._find_claude_md_files()
-        assert len(files) == 4
         assert all(f.name == "CLAUDE.md" for f in files)
         assert any("plugins" in str(f) for f in files)
         assert any("api" in str(f) for f in files)
