@@ -18,8 +18,11 @@ from mcp.types import Resource, TextContent
 
 
 class TrueNASDocServer:
-    def __init__(self, middleware_path: str):
-        self.middleware_path = Path(middleware_path)
+    def __init__(self, docs_path: str = None):
+        # Default to local docs directory
+        if docs_path is None:
+            docs_path = Path(__file__).parent / "docs"
+        self.docs_path = Path(docs_path)
         self.server = Server("truenas-docs")
         self.claude_md_files = self._find_claude_md_files()
         self.resources_cache: Dict[str, Dict[str, Any]] = {}
@@ -37,9 +40,9 @@ class TrueNASDocServer:
         self._process_documentation()
     
     def _find_claude_md_files(self) -> List[Path]:
-        """Find all CLAUDE.md files in the middleware repository."""
+        """Find all CLAUDE.md files in the docs directory."""
         claude_files = []
-        for path in self.middleware_path.rglob("CLAUDE.md"):
+        for path in self.docs_path.rglob("CLAUDE.md"):
             claude_files.append(path)
         return sorted(claude_files)
     
@@ -55,7 +58,7 @@ class TrueNASDocServer:
         }
         
         for claude_file in self.claude_md_files:
-            relative_path = claude_file.relative_to(self.middleware_path)
+            relative_path = claude_file.relative_to(self.docs_path)
             content = claude_file.read_text()
             
             # Categorize based on path
@@ -359,14 +362,8 @@ class TrueNASDocServer:
 
 async def main():
     """Main entry point."""
-    middleware_path = "/Users/waqar/Desktop/work/ixsystems/codes/middleware"
-    
-    # Verify middleware path exists
-    if not Path(middleware_path).exists():
-        raise ValueError(f"Middleware path does not exist: {middleware_path}")
-    
-    # Create and run server
-    doc_server = TrueNASDocServer(middleware_path)
+    # Create and run server with default docs directory
+    doc_server = TrueNASDocServer()
     await doc_server.run()
 
 

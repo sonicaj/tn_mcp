@@ -8,11 +8,9 @@ from truenas_mcp_server import TrueNASDocServer
 
 async def test_server():
     """Test the MCP server functionality."""
-    middleware_path = "/Users/waqar/Desktop/work/ixsystems/codes/middleware"
-    
-    # Create server instance
+    # Create server instance with default docs directory
     print("Creating TrueNAS Doc Server...")
-    server = TrueNASDocServer(middleware_path)
+    server = TrueNASDocServer()
     
     # Test list resources
     print("\nListing available resources:")
