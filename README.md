@@ -6,7 +6,9 @@ This MCP (Model Context Protocol) server provides optimized documentation resour
 
 1. **For Code Claude Integration**: See [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)
 2. **For Usage in Code Claude**: See [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
-3. **For Development Plans**: See [ACTION_PLAN.md](ACTION_PLAN.md)
+3. **For Adding Documentation**: See [DOCUMENTATION_GUIDE.md](DOCUMENTATION_GUIDE.md)
+4. **For Plugin Doc Template**: See [PLUGIN_DOCUMENTATION_TEMPLATE.md](PLUGIN_DOCUMENTATION_TEMPLATE.md)
+5. **For Development Plans**: See [ACTION_PLAN.md](ACTION_PLAN.md)
 
 ## Features
 
