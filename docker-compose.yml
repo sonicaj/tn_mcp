@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  truenas-mcp:
+    build: .
+    image: truenas-mcp-server:latest
+    volumes:
+      # Mount docs as read-only to ensure container doesn't modify them
+      - ./docs:/app/docs:ro
+    # Required for MCP stdio communication
+    stdin_open: true
+    tty: true
+    # Ensure clean shutdown
+    stop_signal: SIGTERM
+    stop_grace_period: 10s

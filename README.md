@@ -2,6 +2,12 @@
 
 This MCP (Model Context Protocol) server provides optimized documentation resources from the TrueNAS middleware repository to Code Claude, helping it understand the codebase structure and APIs without context overload.
 
+## Quick Start
+
+1. **For Code Claude Integration**: See [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)
+2. **For Usage in Code Claude**: See [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
+3. **For Development Plans**: See [ACTION_PLAN.md](ACTION_PLAN.md)
+
 ## Features
 
 - Automatically discovers and processes all CLAUDE.md files in the middleware repository
@@ -9,12 +15,14 @@ This MCP (Model Context Protocol) server provides optimized documentation resour
 - Provides concise, focused resources to avoid context overload
 - Implements intelligent content summarization
 
-## Setup
+## Setup Options
+
+### Option 1: Native Python (Recommended)
 
 1. Create and activate the virtual environment:
 ```bash
-python3.11 -m venv /Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp
-source /Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp/bin/activate
+python3.11 -m venv venv_tn_mcp
+source venv_tn_mcp/bin/activate  # On Windows: venv_tn_mcp\Scripts\activate
 ```
 
 2. Install dependencies:
@@ -22,11 +30,21 @@ source /Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp/bin/activate
 pip install -r requirements.txt
 ```
 
-## Running the Server
-
+3. Run the server:
 ```bash
-source /Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp/bin/activate
-python truenas_mcp_server.py
+./run_server.sh  # Or: python truenas_mcp_server.py
+```
+
+### Option 2: Docker Container
+
+1. Build the Docker image:
+```bash
+docker-compose build
+```
+
+2. Run the server:
+```bash
+docker-compose run --rm truenas-mcp
 ```
 
 ## Available Resources
@@ -56,18 +74,15 @@ The server provides the following types of resources:
 
 ## Integration with Code Claude
 
-To use this MCP server with Code Claude, add the following to your MCP configuration:
+See [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) for detailed setup instructions.
 
+**Quick Config** (add to `claude_desktop_config.json`):
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "truenas-docs": {
-      "command": "python",
-      "args": ["/Users/waqar/Desktop/work/ixsystems/codes/tn_mcp/truenas_mcp_server.py"],
-      "env": {
-        "VIRTUAL_ENV": "/Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp",
-        "PATH": "/Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp/bin:$PATH"
-      }
+      "command": "/path/to/venv_tn_mcp/bin/python",
+      "args": ["/path/to/tn_mcp/truenas_mcp_server.py"]
     }
   }
 }
