@@ -42,7 +42,6 @@ class TrueNASDocServer:
             docs_path = Path(__file__).parent / "docs"
         self.docs_path = Path(docs_path)
         logger.info(f"Initializing TrueNAS Doc Server with docs path: {self.docs_path}")
-        logger.info(f"Docs path exists: {self.docs_path.exists()}")
         
         self.server = Server("truenas-docs")
         self.claude_md_files = self._find_claude_md_files()
@@ -50,66 +49,57 @@ class TrueNASDocServer:
 
         # Register handlers
         @self.server.list_resources()
-        async def handle_list_resources() -> List[Resource]:
+        async def list_resources_handler() -> List[Resource]:
             return await self.handle_list_resources()
 
         @self.server.read_resource()
-        async def handle_read_resource(uri: str) -> str:
+        async def read_resource_handler(uri: str) -> str:
             return await self.handle_read_resource(uri)
 
         # Pre-process and categorize documentation
         self._process_documentation()
-        logger.info(f"Server initialization complete. Resources available: {list(self.resources_cache.keys())}")
+        logger.info(f"Server initialized with {len(self.resources_cache)} resources")
 
     def _find_claude_md_files(self) -> List[Path]:
         """Find all CLAUDE.md files in the docs directory."""
         claude_files = []
-        logger.debug(f"Searching for CLAUDE.md files in: {self.docs_path}")
         for path in self.docs_path.rglob("CLAUDE.md"):
             claude_files.append(path)
-            logger.debug(f"Found CLAUDE.md file: {path}")
-        logger.info(f"Total CLAUDE.md files found: {len(claude_files)}")
+        logger.debug(f"Found {len(claude_files)} CLAUDE.md files")
         return sorted(claude_files)
 
     def _process_documentation(self):
         """Process CLAUDE.md files and create optimized resources."""
-        logger.info("Starting documentation processing...")
+        logger.debug("Processing documentation files...")
 
         for claude_file in self.claude_md_files:
             relative_path = claude_file.relative_to(self.docs_path)
             content = claude_file.read_text()
-            logger.debug(f"Processing file: {relative_path}")
 
             # Categorize based on path
             if relative_path.name == "CLAUDE.md" and relative_path.parent == Path("."):
                 # Root CLAUDE.md - overview
-                logger.debug("Creating overview resources")
                 self._create_overview_resources(content)
             elif "plugins" in str(relative_path):
                 # Plugin documentation
                 plugin_name = relative_path.parent.name
                 if plugin_name == "plugins":
                     # General plugins documentation
-                    logger.debug("Creating plugins overview")
                     self._create_plugins_overview(content)
                 else:
                     # Specific plugin documentation
-                    logger.debug(f"Creating plugin resource for: {plugin_name}")
                     self._create_plugin_resource(plugin_name, content, relative_path)
             elif "api" in str(relative_path):
                 # API documentation
-                logger.debug("Creating API resources")
                 self._create_api_resources(content)
             elif "tests" in str(relative_path):
                 # Testing documentation
-                logger.debug("Creating testing resources")
                 self._create_testing_resources(content)
             else:
                 # Other subsystem documentation
-                logger.debug(f"Creating subsystem resource for: {relative_path}")
                 self._create_subsystem_resource(relative_path, content)
         
-        logger.info(f"Total resources created: {len(self.resources_cache)}")
+        logger.debug(f"Created {len(self.resources_cache)} resources")
 
     def _create_overview_resources(self, content: str):
         """Create overview resources from root CLAUDE.md."""
@@ -181,11 +171,9 @@ class TrueNASDocServer:
     def _create_api_resources(self, content: str):
         """Create API-related resources."""
         sections = self._extract_sections(content)
-        logger.debug(f"API sections found: {list(sections.keys())}")
 
         # API versioning guide - look for Directory Structure and Migration Between Versions
         if "Directory Structure" in sections or "Migration Between Versions" in sections:
-            logger.debug("Creating API versioning resource")
             self.resources_cache["truenas://api/versioning"] = {
                 "name": "API Versioning",
                 "description": "How API versioning works in TrueNAS middleware",
@@ -195,12 +183,9 @@ class TrueNASDocServer:
                     sections.get("Migration Between Versions", "")
                 )
             }
-        else:
-            logger.warning("No API versioning sections found ('Directory Structure' or 'Migration Between Versions')")
-
+        
         # Pydantic models guide - look for Key Concepts which contains the model patterns
         if "Key Concepts" in sections:
-            logger.debug("Creating API models resource")
             self.resources_cache["truenas://api/models"] = {
                 "name": "API Model Patterns",
                 "description": "How to define Pydantic models for API endpoints",
@@ -209,7 +194,6 @@ class TrueNASDocServer:
         
         # Best practices guide
         if "Best Practices" in sections:
-            logger.debug("Creating API best practices resource")
             self.resources_cache["truenas://api/best-practices"] = {
                 "name": "API Best Practices",
                 "description": "Best practices for API development in TrueNAS",
@@ -218,7 +202,6 @@ class TrueNASDocServer:
         
         # Common patterns guide
         if "Common Patterns" in sections:
-            logger.debug("Creating API patterns resource")
             self.resources_cache["truenas://api/patterns"] = {
                 "name": "API Common Patterns",
                 "description": "Common patterns for API endpoints",
@@ -280,7 +263,6 @@ class TrueNASDocServer:
         if current_section:
             sections[current_section] = '\n'.join(current_content).strip()
 
-        logger.debug(f"Extracted {len(sections)} sections: {list(sections.keys())[:5]}...")  # Show first 5 sections
         return sections
 
     def _summarize_content(self, content: str, max_lines: int = 50) -> str:
@@ -340,6 +322,7 @@ class TrueNASDocServer:
 
     async def handle_list_resources(self) -> List[Resource]:
         """Handle list_resources request."""
+        logger.debug("Listing resources")
         resources = []
 
         # Add index resource
@@ -359,18 +342,26 @@ class TrueNASDocServer:
                 mimeType="text/plain"
             ))
 
+        logger.debug(f"Returning {len(resources)} resources")
         return resources
 
     async def handle_read_resource(self, uri: str) -> str:
         """Handle read_resource request."""
+        logger.debug(f"Reading resource: {uri}")
+        
         if uri == "truenas://index":
             # Generate index content
             return self._generate_index()
 
         if uri in self.resources_cache:
-            return self.resources_cache[uri]["content"]
+            content = self.resources_cache[uri]["content"]
+            logger.debug(f"Found resource {uri}, returning {len(content)} characters")
+            return content
 
-        raise ValueError(f"Resource not found: {uri}")
+        logger.debug(f"Resource not found: {uri}")
+        # Return empty string instead of raising exception
+        # Some MCP clients might not handle exceptions well
+        return f"Resource not found: {uri}"
 
     def _generate_index(self) -> str:
         """Generate an index of all available resources."""
@@ -420,7 +411,7 @@ class TrueNASDocServer:
                 read_stream,
                 write_stream,
                 initialization_options,
-                raise_exceptions=False
+                raise_exceptions=True  # Changed to True to see errors
             )
 
 
