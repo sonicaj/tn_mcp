@@ -1,10 +1,8 @@
 {
   "mcpServers": {
     "truenas-docs": {
-      "command": "/Users/waqar/Desktop/work/ixsystems/codes/venv_tn_mcp/bin/python3",
-      "args": ["/Users/waqar/Desktop/work/ixsystems/codes/tn_mcp/truenas_mcp_server.py"],
+      "command": "/Users/waqar/Desktop/work/ixsystems/codes/tn_mcp/run_mcp_tools_server.sh",
       "env": {
-        "PYTHONPATH": "/Users/waqar/Desktop/work/ixsystems/codes/tn_mcp",
         "MCP_SERVER_MODE": "production"
       }
     }

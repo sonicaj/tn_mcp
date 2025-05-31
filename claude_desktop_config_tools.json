@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "truenas-docs-tools": {
+      "command": "python",
+      "args": ["/path/to/truenas_mcp_tools_server.py"],
+      "env": {
+        "MCP_SERVER_MODE": "production"
+      }
+    }
+  }
+}

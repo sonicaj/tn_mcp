@@ -1,6 +1,10 @@
 # Code Claude Integration Guide
 
-This guide explains how to integrate the TrueNAS MCP server with Code Claude for seamless access to middleware documentation.
+This guide explains how to integrate the TrueNAS MCP tools server with Code Claude for seamless access to middleware documentation.
+
+## Important: Tools vs Resources
+
+Code Claude currently only supports MCP **tools**, not MCP resources. This server exposes documentation as tools that Code Claude can invoke directly.
 
 ## How Code Claude Uses MCP Servers
 
@@ -37,11 +41,26 @@ This is the simplest approach for local development.
    ```json
    {
      "mcpServers": {
-       "truenas-docs": {
-         "command": "/path/to/tn_mcp/venv_tn_mcp/bin/python",
-         "args": ["/path/to/tn_mcp/truenas_mcp_server.py"],
+       "truenas-docs-tools": {
+         "command": "/path/to/tn_mcp/run_mcp_tools_server.sh",
          "env": {
-           "PYTHONPATH": "/path/to/tn_mcp"
+           "MCP_SERVER_MODE": "production"
+         }
+       }
+     }
+   }
+   ```
+   
+   Alternative configuration using Python directly:
+   ```json
+   {
+     "mcpServers": {
+       "truenas-docs-tools": {
+         "command": "/path/to/tn_mcp/venv_tn_mcp/bin/python",
+         "args": ["/path/to/tn_mcp/truenas_mcp_tools_server.py"],
+         "env": {
+           "PYTHONPATH": "/path/to/tn_mcp",
+           "MCP_SERVER_MODE": "production"
          }
        }
      }
@@ -67,41 +86,71 @@ For better isolation and consistency across different systems.
 
 ## Usage in Code Claude
 
-Once configured, you can access TrueNAS documentation resources:
+Once configured, Code Claude can invoke the following TrueNAS documentation tools:
 
-### 1. **List Available Resources**
-Code Claude will show available resources in the MCP resources panel, including:
-- `truenas://overview` - High-level middleware architecture
-- `truenas://plugins/service-types` - Service base classes guide
-- `truenas://api/versioning` - API versioning guide
-- And many more...
+### 1. **Available Tools**
+- **`truenas_overview`** - Get middleware architecture overview
+- **`truenas_plugin_docs`** - Get plugin documentation (general or specific)
+- **`truenas_api_docs`** - Get API documentation by topic
+- **`truenas_testing_docs`** - Get testing documentation
+- **`truenas_subsystem_docs`** - Get subsystem-specific docs
+- **`truenas_search_docs`** - Search across all documentation
 
-### 2. **Access Resources During Development**
-When working on TrueNAS middleware code, Code Claude can:
-- Automatically suggest relevant documentation
+### 2. **Automatic Documentation Access**
+When working on TrueNAS middleware code, Code Claude will automatically:
+- Invoke relevant tools when you ask questions
 - Provide context about specific plugins or APIs
 - Help with code patterns and best practices
 
-### 3. **Example Workflow**
+### 3. **Example Workflows**
+
+**Example 1: Creating a new service**
 ```
 User: "I need to create a new CRUD service for managing certificates"
 
-Code Claude: *Accesses truenas://plugins/service-types and truenas://plugins/patterns*
-- Provides the correct base class to extend
-- Shows example patterns from existing services
-- Suggests proper validation and error handling
+Code Claude automatically invokes:
+- truenas_plugin_docs(topic="service_types")
+- truenas_plugin_docs(plugin_name="certificate")
+- truenas_api_docs(topic="patterns")
+
+Then provides:
+- The correct base class to extend
+- Example patterns from existing services
+- Proper validation and error handling
+```
+
+**Example 2: Understanding a specific plugin**
+```
+User: "How does the SMB plugin work in TrueNAS?"
+
+Code Claude automatically invokes:
+- truenas_plugin_docs(plugin_name="smb")
+
+Then explains:
+- SMB plugin architecture
+- Key methods and operations
+- Integration with other services
 ```
 
 ## Verifying Integration
 
 1. **Check MCP Server Status**
-   In Code Claude, you should see "truenas-docs" in the MCP servers list
+   In Code Claude, you should see "truenas-docs-tools" in the MCP servers list
 
-2. **Test Resource Access**
-   Ask Code Claude: "What TrueNAS documentation resources are available?"
+2. **Test Tool Access**
+   Ask Code Claude: "Get the TrueNAS middleware overview documentation"
 
-3. **Verify Resource Content**
-   Ask Code Claude: "Show me the TrueNAS plugin development patterns"
+3. **Verify Tool Functionality**
+   Ask Code Claude: "Search TrueNAS docs for CRUD service patterns"
+
+4. **List Available Tools**
+   The server should expose 6 tools:
+   - truenas_overview
+   - truenas_plugin_docs
+   - truenas_api_docs
+   - truenas_testing_docs
+   - truenas_subsystem_docs
+   - truenas_search_docs
 
 ## Troubleshooting
 
@@ -149,7 +198,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["python", "truenas_mcp_server.py"]
+CMD ["python", "truenas_mcp_tools_server.py"]
 ```
 
 ### Docker Compose for Easy Management:
@@ -162,15 +211,17 @@ services:
       - ./docs:/app/docs:ro
     stdin_open: true
     tty: true
+    environment:
+      - MCP_SERVER_MODE=production
 ```
 
 ### Code Claude Config for Docker:
 ```json
 {
   "mcpServers": {
-    "truenas-docs": {
+    "truenas-docs-tools": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-v", "./docs:/app/docs:ro", "truenas-mcp"]
+      "args": ["run", "-i", "--rm", "-v", "./docs:/app/docs:ro", "-e", "MCP_SERVER_MODE=production", "truenas-mcp"]
     }
   }
 }

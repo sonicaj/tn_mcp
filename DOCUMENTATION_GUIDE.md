@@ -1,15 +1,34 @@
 # TrueNAS Middleware Documentation Guide
 
-This guide explains how to document TrueNAS middleware plugins in this repository for optimal use with Code Claude through the MCP server.
+This guide explains how to document TrueNAS middleware plugins in this repository for optimal use with Code Claude through the MCP tools server.
 
 ## Overview
 
-The MCP server approach provides several advantages over a single CLAUDE.md file in the middleware repository:
+The MCP tools server approach provides several advantages over a single CLAUDE.md file in the middleware repository:
 
-1. **No Context Overload**: Documentation is served on-demand as specific resources
+1. **No Context Overload**: Documentation is served on-demand through specific tools
 2. **Better Organization**: Documentation is categorized and searchable
 3. **Easier Maintenance**: Update docs without modifying the main middleware repo
 4. **Version Control**: Documentation changes are tracked separately
+5. **Code Claude Compatible**: Uses MCP tools that Code Claude can invoke directly
+
+## How Documentation is Exposed to Code Claude
+
+The MCP tools server exposes documentation through the following tools that Code Claude can invoke:
+
+1. **`truenas_overview`** - Returns middleware architecture overview
+2. **`truenas_plugin_docs`** - Returns plugin documentation (general or specific)
+   - Parameters: `plugin_name` (optional), `topic` (optional)
+3. **`truenas_api_docs`** - Returns API documentation by topic
+   - Parameters: `topic` (versioning, models, patterns, best_practices, all)
+4. **`truenas_testing_docs`** - Returns testing documentation
+   - Parameters: `topic` (overview, patterns, all)
+5. **`truenas_subsystem_docs`** - Returns subsystem-specific docs
+   - Parameters: `subsystem` (required)
+6. **`truenas_search_docs`** - Searches across all documentation
+   - Parameters: `query` (required)
+
+When Code Claude needs information about TrueNAS, it automatically invokes these tools to get the relevant documentation.
 
 ## Do You Still Need CLAUDE.md in Middleware?
 
@@ -21,7 +40,7 @@ However, you might want to keep a minimal CLAUDE.md in the middleware root that 
 # TrueNAS Middleware
 
 This repository uses an MCP documentation server for Code Claude integration.
-Configure the `truenas-docs` MCP server in Code Claude for full documentation access.
+Configure the `truenas-docs-tools` MCP server in Code Claude for full documentation access.
 
 See: https://github.com/[your-org]/tn_mcp for setup instructions.
 ```
@@ -51,7 +70,27 @@ docs/
     └── CLAUDE.md                               # Testing documentation
 ```
 
-### 2. Creating Plugin Documentation
+### 2. How Documentation Access Works
+
+When you add documentation for a plugin (e.g., `backup`):
+
+1. **File Location**: `docs/src/middlewared/middlewared/plugins/backup/CLAUDE.md`
+2. **Server Processing**: The MCP tools server finds and caches this content
+3. **Tool Access**: Available via `truenas_plugin_docs(plugin_name="backup")`
+4. **Code Claude Usage**: Automatically invoked when answering questions about backups
+
+**Example Flow**:
+```
+User: "How do I implement a new backup provider?"
+↓
+Code Claude: truenas_plugin_docs(plugin_name="backup")
+↓
+Server: Returns backup plugin documentation
+↓
+Code Claude: Uses docs to provide accurate implementation guidance
+```
+
+### 3. Creating Plugin Documentation
 
 #### Step 1: Create the Directory Structure
 
@@ -328,10 +367,19 @@ EOF
 
 ### 3. Test with Code Claude
 
-Ask Code Claude:
-- "Show me documentation for truenas://plugins/newplugin"
-- "How does the newplugin integrate with other services?"
-- "What patterns should I follow for newplugin?"
+Once documentation is added, Code Claude will automatically access it when needed. For example:
+
+**User asks**: "How do I create a backup task in TrueNAS?"
+
+**Code Claude will**:
+1. Invoke `truenas_plugin_docs(plugin_name="backup")` to get backup plugin documentation
+2. Use the returned documentation to provide accurate guidance
+
+**Manual testing**:
+You can also explicitly ask Code Claude to retrieve documentation:
+- "Get the backup plugin documentation from TrueNAS"
+- "Search TrueNAS docs for backup patterns"
+- "Show me the API documentation for TrueNAS"
 
 ### 4. Iterate
 
