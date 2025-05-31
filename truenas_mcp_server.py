@@ -6,12 +6,33 @@ This MCP server provides documentation resources from the TrueNAS middleware rep
 to Code Claude, helping it understand the codebase structure and APIs.
 """
 
+import logging
 from pathlib import Path
 from typing import Dict, List, Any
+import sys
+import os
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Resource
+
+# Set up logging - use file logging when running as MCP server to avoid stdio conflicts
+if os.environ.get('MCP_SERVER_MODE') == 'production':
+    # Log to file in production MCP mode
+    log_file = Path(__file__).parent / 'truenas_mcp_server.log'
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        filename=str(log_file),
+        filemode='a'
+    )
+else:
+    # Console logging for testing/debugging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+logger = logging.getLogger(__name__)
 
 
 class TrueNASDocServer:
@@ -20,6 +41,9 @@ class TrueNASDocServer:
         if docs_path is None:
             docs_path = Path(__file__).parent / "docs"
         self.docs_path = Path(docs_path)
+        logger.info(f"Initializing TrueNAS Doc Server with docs path: {self.docs_path}")
+        logger.info(f"Docs path exists: {self.docs_path.exists()}")
+        
         self.server = Server("truenas-docs")
         self.claude_md_files = self._find_claude_md_files()
         self.resources_cache: Dict[str, Dict[str, Any]] = {}
@@ -35,43 +59,57 @@ class TrueNASDocServer:
 
         # Pre-process and categorize documentation
         self._process_documentation()
+        logger.info(f"Server initialization complete. Resources available: {list(self.resources_cache.keys())}")
 
     def _find_claude_md_files(self) -> List[Path]:
         """Find all CLAUDE.md files in the docs directory."""
         claude_files = []
+        logger.debug(f"Searching for CLAUDE.md files in: {self.docs_path}")
         for path in self.docs_path.rglob("CLAUDE.md"):
             claude_files.append(path)
+            logger.debug(f"Found CLAUDE.md file: {path}")
+        logger.info(f"Total CLAUDE.md files found: {len(claude_files)}")
         return sorted(claude_files)
 
     def _process_documentation(self):
         """Process CLAUDE.md files and create optimized resources."""
+        logger.info("Starting documentation processing...")
 
         for claude_file in self.claude_md_files:
             relative_path = claude_file.relative_to(self.docs_path)
             content = claude_file.read_text()
+            logger.debug(f"Processing file: {relative_path}")
 
             # Categorize based on path
             if relative_path.name == "CLAUDE.md" and relative_path.parent == Path("."):
                 # Root CLAUDE.md - overview
+                logger.debug("Creating overview resources")
                 self._create_overview_resources(content)
             elif "plugins" in str(relative_path):
                 # Plugin documentation
                 plugin_name = relative_path.parent.name
                 if plugin_name == "plugins":
                     # General plugins documentation
+                    logger.debug("Creating plugins overview")
                     self._create_plugins_overview(content)
                 else:
                     # Specific plugin documentation
+                    logger.debug(f"Creating plugin resource for: {plugin_name}")
                     self._create_plugin_resource(plugin_name, content, relative_path)
             elif "api" in str(relative_path):
                 # API documentation
+                logger.debug("Creating API resources")
                 self._create_api_resources(content)
             elif "tests" in str(relative_path):
                 # Testing documentation
+                logger.debug("Creating testing resources")
                 self._create_testing_resources(content)
             else:
                 # Other subsystem documentation
+                logger.debug(f"Creating subsystem resource for: {relative_path}")
                 self._create_subsystem_resource(relative_path, content)
+        
+        logger.info(f"Total resources created: {len(self.resources_cache)}")
 
     def _create_overview_resources(self, content: str):
         """Create overview resources from root CLAUDE.md."""
@@ -143,29 +181,48 @@ class TrueNASDocServer:
     def _create_api_resources(self, content: str):
         """Create API-related resources."""
         sections = self._extract_sections(content)
+        logger.debug(f"API sections found: {list(sections.keys())}")
 
-        # API versioning guide
-        if "Version Directories" in sections or "Migration Between Versions" in sections:
+        # API versioning guide - look for Directory Structure and Migration Between Versions
+        if "Directory Structure" in sections or "Migration Between Versions" in sections:
+            logger.debug("Creating API versioning resource")
             self.resources_cache["truenas://api/versioning"] = {
                 "name": "API Versioning",
                 "description": "How API versioning works in TrueNAS middleware",
                 "content": (
                     sections.get("Overview", "") + "\n\n" +
-                    sections.get("Version Directories", "") + "\n\n" +
+                    sections.get("Directory Structure", "") + "\n\n" +
                     sections.get("Migration Between Versions", "")
                 )
             }
+        else:
+            logger.warning("No API versioning sections found ('Directory Structure' or 'Migration Between Versions')")
 
-        # Pydantic models guide
-        if "Base Model Classes" in sections or "CRUD Model Pattern" in sections:
+        # Pydantic models guide - look for Key Concepts which contains the model patterns
+        if "Key Concepts" in sections:
+            logger.debug("Creating API models resource")
             self.resources_cache["truenas://api/models"] = {
                 "name": "API Model Patterns",
                 "description": "How to define Pydantic models for API endpoints",
-                "content": (
-                    sections.get("Base Model Classes", "") + "\n\n" +
-                    sections.get("CRUD Model Pattern", "") + "\n\n" +
-                    sections.get("Special Types and Fields", "")
-                )
+                "content": sections.get("Key Concepts", "")
+            }
+        
+        # Best practices guide
+        if "Best Practices" in sections:
+            logger.debug("Creating API best practices resource")
+            self.resources_cache["truenas://api/best-practices"] = {
+                "name": "API Best Practices",
+                "description": "Best practices for API development in TrueNAS",
+                "content": sections.get("Best Practices", "")
+            }
+        
+        # Common patterns guide
+        if "Common Patterns" in sections:
+            logger.debug("Creating API patterns resource")
+            self.resources_cache["truenas://api/patterns"] = {
+                "name": "API Common Patterns",
+                "description": "Common patterns for API endpoints",
+                "content": sections.get("Common Patterns", "")
             }
 
     def _create_testing_resources(self, content: str):
@@ -223,6 +280,7 @@ class TrueNASDocServer:
         if current_section:
             sections[current_section] = '\n'.join(current_content).strip()
 
+        logger.debug(f"Extracted {len(sections)} sections: {list(sections.keys())[:5]}...")  # Show first 5 sections
         return sections
 
     def _summarize_content(self, content: str, max_lines: int = 50) -> str:
