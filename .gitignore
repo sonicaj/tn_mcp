@@ -36,9 +36,4 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Project specific
-docs/
 
-# Docker
-.dockerignore
-docker-compose.override.yml
