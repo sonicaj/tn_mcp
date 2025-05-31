@@ -6,15 +6,12 @@ This MCP server provides documentation resources from the TrueNAS middleware rep
 to Code Claude, helping it understand the codebase structure and APIs.
 """
 
-import os
-import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any
-import yaml
+from typing import Dict, List, Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Resource, TextContent
+from mcp.types import Resource
 
 
 class TrueNASDocServer:
@@ -48,14 +45,6 @@ class TrueNASDocServer:
     
     def _process_documentation(self):
         """Process CLAUDE.md files and create optimized resources."""
-        # Categories for organizing documentation
-        categories = {
-            "overview": [],
-            "plugins": [],
-            "api": [],
-            "testing": [],
-            "subsystems": {}
-        }
         
         for claude_file in self.claude_md_files:
             relative_path = claude_file.relative_to(self.docs_path)
@@ -357,7 +346,13 @@ class TrueNASDocServer:
     async def run(self):
         """Run the MCP server."""
         async with stdio_server() as (read_stream, write_stream):
-            await self.server.run(read_stream, write_stream)
+            initialization_options = self.server.create_initialization_options()
+            await self.server.run(
+                read_stream,
+                write_stream,
+                initialization_options,
+                raise_exceptions=False
+            )
 
 
 async def main():
