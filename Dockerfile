@@ -10,11 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements first for better caching
 COPY requirements.txt .
+COPY requirements-dev.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # Copy application code
 COPY truenas_mcp_server.py .
-COPY test_server.py .
+COPY truenas_mcp_tools_server.py .
+COPY run_middleware_tests.sh .
+RUN chmod +x run_middleware_tests.sh
+
+# Copy test files
+COPY tests/ ./tests/
+COPY pytest.ini .
 
 # Copy docs directory (will be overridden by volume mount in most cases)
 COPY docs/ ./docs/

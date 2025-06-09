@@ -104,3 +104,37 @@ To avoid context overload, the server:
 - Limits code examples to essential ones
 - Focuses on API signatures and patterns rather than full implementations
 - Groups related information into logical resources
+
+## Running Tests
+
+Tests are run using Docker to ensure a consistent environment.
+
+### Run All Tests
+```bash
+docker-compose run --rm truenas-mcp-test
+```
+
+### Run Specific Test File
+```bash
+docker-compose run --rm truenas-mcp-test pytest tests/test_truenas_mcp_tools_server.py -v
+```
+
+### Run with Coverage
+```bash
+docker-compose run --rm truenas-mcp-test pytest --cov=. --cov-report=html
+```
+
+## Running Middleware Tests
+
+The server includes a tool for running TrueNAS middleware tests. Use the `run_middleware_tests.sh` script:
+
+```bash
+# Run all middleware tests
+./run_middleware_tests.sh
+
+# Run a specific test file
+./run_middleware_tests.sh . test_construct_schema.py
+
+# Clean up test container
+./run_middleware_tests.sh /path/to/middleware --cleanup
+```

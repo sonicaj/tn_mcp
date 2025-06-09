@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import sys
 import os
+import subprocess
+import asyncio
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -305,6 +307,26 @@ class TrueNASDocToolsServer:
             }
         ))
 
+        # Add test running tool
+        tools.append(Tool(
+            name="truenas_run_tests",
+            description="Run TrueNAS middleware tests using Docker. Can run all tests or specific test files.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "repo_path": {
+                        "type": "string",
+                        "description": "Path to middleware repository (default: /Users/waqar/Desktop/work/ixsystems/codes/middleware)"
+                    },
+                    "test_file": {
+                        "type": "string",
+                        "description": "Specific test file to run (e.g., test_construct_schema.py)"
+                    }
+                },
+                "required": []
+            }
+        ))
+
         logger.debug(f"Returning {len(tools)} tools")
         return tools
 
@@ -325,6 +347,8 @@ class TrueNASDocToolsServer:
                 return await self._handle_subsystem_docs_tool(arguments)
             elif name == "truenas_search_docs":
                 return await self._handle_search_docs_tool(arguments)
+            elif name == "truenas_run_tests":
+                return await self._handle_run_tests_tool(arguments)
             else:
                 return [TextContent(type="text", text=f"Unknown tool: {name}")]
         except Exception as e:
@@ -484,6 +508,85 @@ class TrueNASDocToolsServer:
             return [TextContent(type="text", text=f"# Search Results for '{query}'\n\n" + '\n\n---\n\n'.join(results))]
         else:
             return [TextContent(type="text", text=f"No results found for '{query}'")]
+
+    async def _handle_run_tests_tool(self, arguments: Dict[str, Any]) -> List[TextContent]:
+        """Handle running middleware tests."""
+        repo_path = arguments.get("repo_path", "/Users/waqar/Desktop/work/ixsystems/codes/middleware")
+        test_file = arguments.get("test_file", "")
+        
+        # Path to the test script
+        script_path = Path(__file__).parent / "run_middleware_tests.sh"
+        
+        if not script_path.exists():
+            return [TextContent(type="text", text=f"Test script not found at {script_path}")]
+        
+        # Build command
+        cmd = [str(script_path), repo_path]
+        if test_file:
+            cmd.append(test_file)
+        
+        logger.info(f"Running test command: {' '.join(cmd)}")
+        
+        try:
+            # Run the test script with a timeout (10 minutes for tests)
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            # Wait for completion with timeout
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=600  # 10 minutes
+            )
+            
+            # Decode output
+            stdout_str = stdout.decode('utf-8') if stdout else ""
+            stderr_str = stderr.decode('utf-8') if stderr else ""
+            
+            # Format result
+            result_parts = []
+            
+            if process.returncode == 0:
+                result_parts.append("✅ Tests completed successfully!")
+            else:
+                result_parts.append(f"❌ Tests failed with exit code: {process.returncode}")
+            
+            # Add output
+            if stdout_str:
+                # Extract key information from output
+                lines = stdout_str.split('\n')
+                
+                # Look for test results
+                test_output = []
+                capture = False
+                for line in lines:
+                    if "test session starts" in line:
+                        capture = True
+                    if capture:
+                        test_output.append(line)
+                    if "passed" in line and "warnings" in line:
+                        capture = False
+                        test_output.append(line)
+                        break
+                
+                if test_output:
+                    result_parts.append("\n## Test Output\n```\n" + "\n".join(test_output) + "\n```")
+                else:
+                    # If no pytest output found, show last 50 lines
+                    result_parts.append("\n## Output (last 50 lines)\n```\n" + "\n".join(lines[-50:]) + "\n```")
+            
+            if stderr_str and process.returncode != 0:
+                result_parts.append(f"\n## Errors\n```\n{stderr_str}\n```")
+            
+            return [TextContent(type="text", text="\n".join(result_parts))]
+            
+        except asyncio.TimeoutError:
+            return [TextContent(type="text", text="❌ Test execution timed out after 10 minutes")]
+        except Exception as e:
+            logger.error(f"Error running tests: {e}")
+            return [TextContent(type="text", text=f"❌ Error running tests: {str(e)}")]
 
     async def run(self):
         """Run the MCP server."""

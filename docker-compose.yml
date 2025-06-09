@@ -13,3 +13,19 @@ services:
     # Ensure clean shutdown
     stop_signal: SIGTERM
     stop_grace_period: 10s
+
+  truenas-mcp-test:
+    build: .
+    image: truenas-mcp-server:latest
+    volumes:
+      # Mount docs as read-only for tests
+      - ./docs:/app/docs:ro
+      # Mount source code for live testing during development
+      - ./truenas_mcp_server.py:/app/truenas_mcp_server.py:ro
+      - ./truenas_mcp_tools_server.py:/app/truenas_mcp_tools_server.py:ro
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+    command: pytest
+    # Ensure clean shutdown
+    stop_signal: SIGTERM
+    stop_grace_period: 10s
